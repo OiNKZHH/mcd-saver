@@ -41,13 +41,40 @@
 >
 > 上面的 GIF 正是本项目的诞生理由：裸算法会推荐「晚上的一杯咖啡 + 套餐」，体验层把它纠正成「刚好的一顿」。
 
-## 🚀 快速开始
+## 🎯 目标用户
+
+- **普通消费者**：想点麦当劳但拿不定主意，或想「吃得好又省钱」的人
+- **健身/控卡人群**：需要按热量、蛋白质目标搭配餐食的人
+- **开发者**：想了解「如何把 MCP 能力组合成有业务闭环的 AI Skill」的参考样例
+
+## 🚀 安装与使用
+
+### 前置条件
+
+- Python 3.10+
+- 麦当劳 MCP Token（仅真实下单时需要；离线演示无需）
+
+### 安装
 
 ```bash
-git clone <你的仓库地址>
+git clone https://github.com/OiNKZHH/mcd-saver
 cd mcd-saver
-python3 src/demo.py   # 一行命令看完整链路，无需 MCP Token
+# 无第三方依赖，Python 标准库即可运行
 ```
+
+### 使用示例
+
+**离线演示（无需 Token）**：
+
+```bash
+python3 src/demo.py
+```
+
+**在 WorkBuddy 中使用（真实下单）**：
+
+1. 申请 MCP Token：访问 `https://open.mcd.cn/mcp` → 登录 → 控制台 → 激活
+2. 在 WorkBuddy 配置 `mcd-mcp` 服务器（参考 `mcp-config.example.json`）
+3. 对话式使用，例如：「今晚想吃麦当劳，帮我点，预算 40」
 
 ## 🍟 它能做什么
 
@@ -93,21 +120,26 @@ python3 src/demo.py   # 一行命令看完整链路，无需 MCP Token
 
 ```
 mcd-saver/
+├── README.md             # 项目介绍/安装/示例/目标用户（参赛必备）
+├── CONTEST_DECLARATION.md # 参赛声明（官方模板，参赛必备）
+├── MCP_INTEGRATION.md    # MCP 集成说明（参赛必备）
+├── mcp-config.example.json # 脱敏 MCP 配置示例（参赛必备）
+├── workbuddy.md          # WorkBuddy 对话上下文（专项奖励必备）
 ├── SKILL.md              # Skill 定义（意图前置 + 四阶段流程）
-├── README.md
 ├── LICENSE
 ├── data/nutrition.tsv    # 营养数据（list-nutrition-foods 实测，158 条）
 ├── docs/
 │   ├── dev-log.md        # 完整开发记录（含两轮对抗式审查）
+│   ├── demo.gif          # README 演示动画
 │   └── submit-issue.md   # 参赛 Issue 提交文案
-└── src/
-    ├── optimizer.py      # 组合优化（多价格档位 + top-K 精排）
-    ├── mcp_adapter.py    # MCP 数据映射 + 营养回填 + 报价解析
-    ├── taste.py          # 点餐意图与体验规则（时段/去重/凑单保护）
-    ├── run.py            # 编排层：意图 → 过滤 → 优化 → 精排 → 下单
-    └── demo.py           # 端到端离线演示
-tools/
-└── make_gif.py           # 生成 README 演示 GIF（Pillow）
+├── src/
+│   ├── optimizer.py      # 组合优化（多价格档位 + top-K 精排）
+│   ├── mcp_adapter.py    # MCP 数据映射 + 营养回填 + 报价解析
+│   ├── taste.py          # 点餐意图与体验规则（时段/去重/凑单保护）
+│   ├── run.py            # 编排层：意图 → 过滤 → 优化 → 精排 → 下单
+│   └── demo.py           # 端到端离线演示
+└── tools/
+    └── make_gif.py       # 生成 README 演示 GIF（Pillow）
 ```
 
 ## 🔌 依赖的 MCP 能力
