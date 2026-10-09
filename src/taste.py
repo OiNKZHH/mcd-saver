@@ -174,3 +174,64 @@ def explain_filter(dropped: list) -> str:
         return ""
     parts = [f"{n}（{cat}）" for n, cat in dropped]
     return "已按当前时段排除：" + "、".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# 餐的完整性（解决「只推吃的、没配喝的」）
+# ---------------------------------------------------------------------------
+
+# 一顿完整单人餐的品类结构：主食 + 饮品为「必备」，小食/甜品为「可选」
+MEAL_STRUCTURE: dict[str, str] = {
+    "汉堡": "主食",
+    "炸鸡": "主食",
+    "套餐": "主食",      # 套餐已含饮品，视为「主食+饮品」一体
+    "早餐": "主食",
+    "其他": "主食",      # 无法归类的主食类默认当主食
+    "饮料": "饮品",
+    "咖啡": "饮品",
+    "薯条小食": "小食",
+    "甜品": "甜品",
+}
+
+# 饮品大类（不含咖啡，因咖啡有时段限制）
+DRINK_CATEGORIES = ("饮料", "咖啡")
+
+
+def meal_roles(order) -> dict[str, bool]:
+    """判断订单覆盖了哪些「餐的角色」（主食/饮品/小食/甜品）。
+
+    套餐已含饮品，故套餐同时满足「主食」和「饮品」。
+    """
+    roles = {"主食": False, "饮品": False, "小食": False, "甜品": False}
+    for i in order.items:
+        cat = infer_category(i.name)
+        role = MEAL_STRUCTURE.get(cat, "主食")
+        roles[role] = True
+        if cat == "套餐":
+            # 套餐默认含饮品
+            roles["饮品"] = True
+    return roles
+
+
+def check_completeness(order) -> list[str]:
+    """检查一顿餐是否完整：必须有主食 + 饮品。
+
+    返回缺失提示列表（空 = 完整）。用于推荐后的补全建议。
+    """
+    roles = meal_roles(order)
+    problems = []
+    if not roles["主食"]:
+        problems.append("缺主食")
+    if not roles["饮品"]:
+        problems.append("缺饮品（建议配一杯饮料）")
+    return problems
+
+
+def completeness_gap(order) -> Optional[str]:
+    """返回需要补的品类名（None 表示已完整）。优先补饮品。"""
+    roles = meal_roles(order)
+    if not roles["主食"]:
+        return "主食"
+    if not roles["饮品"]:
+        return "饮品"
+    return None

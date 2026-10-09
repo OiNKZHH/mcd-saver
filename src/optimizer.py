@@ -177,16 +177,55 @@ def optimize_topk(
     max_items: int = 3,
     objective: str = "max_saving",
     k: int = 10,
+    require_complete_meal: bool = False,
 ) -> list[Order]:
     """返回启发式下的 top-K 候选组合（按 objective 排序）。
 
     用途：优化器用「券后价差」做启发式初筛，得到 K 个候选后，
     由调用方对每个候选调 calculate-price 拿真实 discount 做精排。
+
+    require_complete_meal：为 True 时，候选必须同时含「主食」和「饮品」
+    （通过餐品名关键词判断），避免推荐「只有吃的没喝的」。
     """
     import heapq
 
     heap: list[tuple] = []  # 元素 (key, seq, candidate)，seq 保证不比较到 Order
     seq = 0
+
+    # 轻量品类判断（仅用于完整性约束，与 taste.py 的 infer_category 一致）
+    def _cat(name: str) -> str:
+        combo_kw = ("套餐", "件套", "四件套", "三件套", "随心配", "随心选", "分享餐", "拼盘")
+        if any(x in name for x in combo_kw):
+            return "套餐"
+        if any(x in name for x in ("可乐", "雪碧", "橙", "柠檬红茶", "奶茶", "牛奶", "燕麦", "茶", "苹果汁", "怡泉", "咖啡", "美式", "拿铁", "卡布奇诺", "玛奇朵", "麦咖啡", "雪冰")):
+            return "饮品"
+        if any(x in name for x in ("麦满分", "早安", "粥", "油条", "豆浆", "薯饼")):
+            return "早餐"
+        # 小食/甜品：既不算主食，也不算饮品（配餐类）
+        if any(x in name for x in ("薯条", "玉米杯", "脆薯饼", "薯薯", "麦旋风", "新地", "派", "冰淇淋", "圆筒", "拉明顿")):
+            return "小食"
+        # 炸鸡/鸡块等蛋白类归主食
+        return "主食"
+
+    def _has_role(items: list[FoodItem], role: str) -> bool:
+        for i in items:
+            c = _cat(i.name)
+            if c == "套餐":
+                if role in ("主食", "饮品"):
+                    return True
+            elif c == "饮品":
+                if role == "饮品":
+                    return True
+            elif c in ("早餐", "主食"):
+                if role == "主食":
+                    return True
+            # 小食/甜品不满足主食也不满足饮品
+        return False
+
+    def _is_complete(items: list[FoodItem]) -> bool:
+        if not require_complete_meal:
+            return True
+        return _has_role(items, "主食") and _has_role(items, "饮品")
 
     def push(candidate: Order) -> None:
         nonlocal seq
@@ -212,7 +251,7 @@ def optimize_topk(
         energy = sum(i.energy_kcal for i in chosen_items)
         if max_energy is not None and energy > max_energy:
             return
-        if chosen_items:
+        if chosen_items and _is_complete(chosen_items):
             protein = sum(i.protein_g for i in chosen_items)
             if min_protein is None or protein >= min_protein:
                 push(

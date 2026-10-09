@@ -24,6 +24,7 @@ from mcp_adapter import (
 )
 from optimizer import FoodItem, optimize_topk
 from taste import (
+    check_completeness,
     combo_containment_check,
     current_slot,
     explain_filter,
@@ -65,11 +66,13 @@ def run(
     nutrition_path: Optional[str] = "data/nutrition.tsv",
     intent: Optional[str] = None,
     now=None,
+    require_complete_meal: bool = True,
 ) -> Optional[dict]:
     """执行完整推荐流程，返回最优方案 + 真实报价摘要 + 质量说明。
 
     quote_fn(order) -> calculate-price 的原始 payload dict。
     intent：用户点餐意图（健康/解馋/换口味/省钱/随便），影响推荐口径。
+    require_complete_meal：默认 True，保证推荐是一顿完整餐（主食+饮品）。
     流程：时段过滤 → 组装 foods → 启发式 top-K → 真实报价精排 → 质量校验。
     """
     # 1. 时段过滤（晚餐/夜宵不推咖啡、早餐）
@@ -84,7 +87,7 @@ def run(
     # 2. 意图提示（供 agent 组织推荐话术）
     hint = intent_hint(intent) if intent else intent_hint("随便")
 
-    # 3. 启发式 top-K
+    # 3. 启发式 top-K（默认要求「主食+饮品」完整餐）
     candidates = optimize_topk(
         foods,
         budget=budget,
@@ -93,6 +96,7 @@ def run(
         max_items=max_items,
         objective=objective,
         k=topk,
+        require_complete_meal=require_complete_meal,
     )
     if not candidates:
         return None
@@ -102,8 +106,9 @@ def run(
     if best is None:
         return None
 
-    # 5. 质量校验（套餐去重）
+    # 5. 质量校验（套餐去重 + 完整性）
     problems = combo_containment_check(best)
+    problems += check_completeness(best)
 
     return {
         "order": best,
